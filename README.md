@@ -1,1 +1,1 @@
-# animus-mobile-app
+# anemos-mobile-app
