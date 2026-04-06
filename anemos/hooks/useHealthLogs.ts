@@ -8,8 +8,10 @@ export interface HealthLog {
   logged_at: string
   wellbeing: number
   symptoms: string[]
+  symptoms_notes: string | null
   notes: string | null
   pm2_5_snapshot: number | null
+  activity: string | null
 }
 
 export interface UseHealthLogsResult {
@@ -20,7 +22,9 @@ export interface UseHealthLogsResult {
   submit: (entry: {
     wellbeing: number
     symptoms: string[]
+    symptomsNotes: string
     notes: string
+    activity: string
     pm2_5Snapshot: number | null
   }) => Promise<void>
 }
@@ -55,7 +59,9 @@ export function useHealthLogs(): UseHealthLogsResult {
     async (entry: {
       wellbeing: number
       symptoms: string[]
+      symptomsNotes: string
       notes: string
+      activity: string
       pm2_5Snapshot: number | null
     }) => {
       if (!session) return
@@ -67,7 +73,9 @@ export function useHealthLogs(): UseHealthLogsResult {
           user_id: session.user.id,
           wellbeing: entry.wellbeing,
           symptoms: entry.symptoms,
+          symptoms_notes: entry.symptomsNotes.trim() || null,
           notes: entry.notes.trim() || null,
+          activity: entry.activity.trim() || null,
           pm2_5_snapshot: entry.pm2_5Snapshot,
         })
         .select()

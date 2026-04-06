@@ -1,0 +1,2 @@
+[functions.aero-query]
+verify_jwt = false

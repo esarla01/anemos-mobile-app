@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "jsx": "react-native",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "lib": ["DOM", "ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "strict": true
+  },
+  "include": [
+    "anemos/**/*.ts",
+    "anemos/**/*.tsx",
+    "anemos/.expo/types/**/*.ts",
+    "anemos/expo-env.d.ts"
+  ],
+  "exclude": [
+    "anemos/node_modules",
+    "anemos/android",
+    "anemos/ios"
+  ]
+}
