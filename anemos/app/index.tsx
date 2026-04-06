@@ -1,12 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList } from 'react-native';
-import { supabase } from '../utils/supabase';
+import { Redirect } from 'expo-router'
+import type { Href } from 'expo-router'
 
 export default function Index() {
-
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Todo List</Text>
-    </View>
-  );
+  return <Redirect href={'/(auth)/sign-in' as Href} />
 }
