@@ -9,8 +9,10 @@ import Svg, {
   Line, Text as SvgText, Circle, G,
 } from 'react-native-svg'
 import { useExposure } from '../../hooks/useExposure'
+import { useBLE } from '../../hooks/useBLE'
 import { useLocation } from '../../hooks/useLocation'
 import type { TimePoint, DailyAverage } from '../../hooks/useExposure'
+import type { BLEConnectionState } from '../../hooks/useBLE'
 import { Colors, FontFamily, FontSize, Radius, Shadow, Spacing } from '../../constants/theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -398,8 +400,18 @@ const TABS: { key: TabKey; label: string; subtitle: string; chartLabel: string }
   { key: '7day', label: '7-Day', subtitle: '7-day summary', chartLabel: 'Daily Trend' },
 ]
 
+function bleBadgeProps(state: BLEConnectionState): { label: string; color: string } {
+  switch (state) {
+    case 'connected':    return { label: 'Live', color: '#3D8B5E' }
+    case 'connecting':   return { label: 'Connecting…', color: '#D4903A' }
+    case 'scanning':     return { label: 'Scanning…', color: '#D4903A' }
+    case 'disconnected': return { label: 'Sensor offline', color: Colors.textTertiary }
+  }
+}
+
 export default function Exposure() {
-  const { current, todayHourly, threeDaySixHour, sevenDayDaily, loading, error, refetch } = useExposure()
+  const { connectionState, latestReading: bleReading } = useBLE()
+  const { current, todayHourly, threeDaySixHour, sevenDayDaily, loading, error, refetch } = useExposure(bleReading)
   const { label: locationLabel, loading: locationLoading, refresh: refreshLocation } = useLocation()
   const [heroMetric, setHeroMetric] = useState<MetricKey>('pm2_5')
   const [tab, setTab] = useState<TabKey>('today')
@@ -474,6 +486,15 @@ export default function Exposure() {
                 {current?.timestamp ? relativeTime(current.timestamp) : '—'}
               </Text>
             </View>
+            {(() => {
+              const { label, color } = bleBadgeProps(connectionState)
+              return (
+                <View style={s.bleBadge}>
+                  <View style={[s.bleDot, { backgroundColor: color }]} />
+                  <Text style={[s.bleLabel, { color }]}>{label}</Text>
+                </View>
+              )
+            })()}
           </View>
           <Pressable
             style={({ pressed }) => [s.locationBtn, pressed && { transform: [{ scale: 0.96 }] }]}
@@ -482,6 +503,13 @@ export default function Exposure() {
             <Text style={s.locationBtnIcon}>◎</Text>
           </Pressable>
         </View>
+
+        {/* ── Obstructed warning ───────────────────────────────────────────── */}
+        {bleReading?.obstructed && (
+          <View style={s.obstructedBanner}>
+            <Text style={s.obstructedText}>Sensor obstructed — readings may be inaccurate</Text>
+          </View>
+        )}
 
         {/* ── Hero card ────────────────────────────────────────────────────── */}
         <View style={s.heroCard}>
@@ -815,6 +843,40 @@ const s = StyleSheet.create({
     fontSize: FontSize.tiny,
     fontFamily: FontFamily.regular,
     color: Colors.textTertiary,
+  },
+
+  // BLE status badge
+  bleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
+  },
+  bleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  bleLabel: {
+    fontSize: FontSize.micro,
+    fontFamily: FontFamily.medium,
+  },
+
+  // Obstructed warning banner
+  obstructedBanner: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: Radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  obstructedText: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.medium,
+    color: '#92400E',
+    textAlign: 'center',
   },
 
   // Error / retry
