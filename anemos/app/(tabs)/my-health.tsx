@@ -215,6 +215,17 @@ function LogCard({ log }: { log: HealthLog }) {
   )
 }
 
+// ─── Aero Insights Banner ─────────────────────────────────────────────────────
+
+function AeroInsightsBanner({ message }: { message: string }) {
+  return (
+    <View style={s.insightsBanner}>
+      <Text style={s.insightsLabel}>Aero Insights</Text>
+      <Text style={s.insightsBody}>{message}</Text>
+    </View>
+  )
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function MyHealth() {
@@ -270,6 +281,9 @@ export default function MyHealth() {
           <Text style={s.pageTitle}>My Health</Text>
           <TodayCounter logs={logs} />
         </View>
+
+        {/* ── Aero Insights ────────────────────────────────────────────────── */}
+        <AeroInsightsBanner message="Your allergies flare up when PM2.5 exceeds 40m μg/m³." />
 
         {/* ── Log entry card ───────────────────────────────────────────────── */}
         <Text style={s.sectionTitle}>How are you feeling?</Text>
@@ -672,6 +686,31 @@ const s = StyleSheet.create({
     fontSize: FontSize.caption,
     fontFamily: FontFamily.medium,
     color: Colors.textTertiary,
+  },
+
+  // Aero Insights banner
+  insightsBanner: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 2,
+  },
+  insightsLabel: {
+    fontSize: FontSize.micro,
+    fontFamily: FontFamily.bold,
+    color: Colors.primary,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  insightsBody: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.serif,
+    color: Colors.primary,
+    lineHeight: 22,
   },
 
   // Empty state

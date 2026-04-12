@@ -10,7 +10,9 @@ import Svg, {
 } from 'react-native-svg'
 import { useExposure } from '../../hooks/useExposure'
 import { useLocation } from '../../hooks/useLocation'
+import { useAirQualityForecast } from '../../hooks/useAirQualityForecast'
 import type { TimePoint, DailyAverage } from '../../hooks/useExposure'
+import type { DayAQI, PollenType } from '../../hooks/useAirQualityForecast'
 import { Colors, FontFamily, FontSize, Radius, Shadow, Spacing } from '../../constants/theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -398,9 +400,96 @@ const TABS: { key: TabKey; label: string; subtitle: string; chartLabel: string }
   { key: '7day', label: '7-Day', subtitle: '7-day summary', chartLabel: 'Daily Trend' },
 ]
 
+// ─── AQI Forecast Section ─────────────────────────────────────────────────────
+
+function ForecastSection({ forecast, loading }: { forecast: DayAQI[]; loading: boolean }) {
+  return (
+    <View style={s.forecastCard}>
+      <View style={s.sectionHeader}>
+        <Text style={s.sectionTitle}>3-Day Forecast</Text>
+      </View>
+      <View style={s.forecastRow}>
+        {loading || forecast.length === 0
+          ? [0, 1, 2].map(i => (
+              <View key={i} style={s.forecastDayCard}>
+                <View style={s.skeletonLabel} />
+                <View style={s.skeletonValue} />
+                <View style={s.skeletonBadge} />
+              </View>
+            ))
+          : forecast.map(day => (
+              <View key={day.label} style={[s.forecastDayCard, { backgroundColor: day.softColor }]}>
+                <Text style={s.forecastDayLabel}>{day.label}</Text>
+                <Text style={[s.forecastAQIValue, { color: day.color }]}>{day.avgPM25}</Text>
+                <Text style={s.forecastAQIUnit}>μg/m³</Text>
+                <View style={[s.forecastBadge, { backgroundColor: day.color + '22' }]}>
+                  <Text style={[s.forecastBadgeText, { color: day.color }]}>{day.statusLabel}</Text>
+                </View>
+              </View>
+            ))
+        }
+      </View>
+    </View>
+  )
+}
+
+// ─── Aero Insights Banner ─────────────────────────────────────────────────────
+
+interface AeroInsightsBannerProps {
+  pctChange: number  // negative = down (good), positive = up (bad)
+}
+
+function AeroInsightsBanner({ pctChange }: AeroInsightsBannerProps) {
+  const isDown = pctChange < 0
+  const abs = Math.abs(pctChange)
+  const tint = isDown ? Colors.primaryLight : Colors.aqiModerateSoft
+  const accent = isDown ? Colors.primary : Colors.aqiModerate
+
+  return (
+    <View style={[s.insightsBanner, { backgroundColor: tint, borderColor: accent }]}>
+      <Text style={[s.insightsLabel, { color: accent }]}>Aero Insights</Text>
+      <Text style={[s.insightsBody, { color: accent }]}>
+        {`Your exposure levels are ${isDown ? 'down' : 'up'} ${abs}% from last week.`}
+      </Text>
+    </View>
+  )
+}
+
+// ─── Pollen Section ───────────────────────────────────────────────────────────
+
+function PollenSection({ pollen, loading, hasLocation }: { pollen: PollenType[]; loading: boolean; hasLocation: boolean }) {
+  if (!hasLocation) return null
+
+  return (
+    <View style={s.pollenCard}>
+      <View style={s.sectionHeader}>
+        <Text style={s.sectionTitle}>Pollen</Text>
+        <Text style={s.sectionSubtitle}>Current levels</Text>
+      </View>
+      <View style={s.pollenRow}>
+        {loading || pollen.length === 0
+          ? [0, 1, 2].map(i => <View key={i} style={s.skeletonPollen} />)
+          : pollen.map(p => (
+              <View key={p.name} style={[s.pollenBadge, { backgroundColor: p.softColor }]}>
+                <View style={[s.dot, { backgroundColor: p.color }]} />
+                <View>
+                  <Text style={[s.pollenName, { color: p.color }]}>{p.name}</Text>
+                  <Text style={[s.pollenLevel, { color: p.color }]}>{p.level}</Text>
+                </View>
+              </View>
+            ))
+        }
+      </View>
+    </View>
+  )
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 export default function Exposure() {
   const { current, todayHourly, threeDaySixHour, sevenDayDaily, loading, error, refetch } = useExposure()
-  const { label: locationLabel, loading: locationLoading, refresh: refreshLocation } = useLocation()
+  const { coords, label: locationLabel, loading: locationLoading, refresh: refreshLocation } = useLocation()
+  const { aqiForecast, currentPollen, loading: forecastLoading, refetch: refetchForecast } = useAirQualityForecast(coords)
   const [heroMetric, setHeroMetric] = useState<MetricKey>('pm2_5')
   const [tab, setTab] = useState<TabKey>('today')
   const [chartMetric, setChartMetric] = useState<MetricKey>('pm2_5')
@@ -424,6 +513,14 @@ export default function Exposure() {
   const whoLabel = chartMetric === 'pm2_5' ? '15 μg/m³'
     : chartMetric === 'pm10' ? '45 μg/m³'
     : null
+
+  const weekChange = useMemo(() => {
+    if (sevenDayDaily.length < 2) return null
+    const first = sevenDayDaily[0].avg_pm25
+    const last = sevenDayDaily[sevenDayDaily.length - 1].avg_pm25
+    if (first === 0) return null
+    return Math.round(((last - first) / first) * 100)
+  }, [sevenDayDaily])
 
   if (loading) {
     return (
@@ -477,7 +574,7 @@ export default function Exposure() {
           </View>
           <Pressable
             style={({ pressed }) => [s.locationBtn, pressed && { transform: [{ scale: 0.96 }] }]}
-            onPress={refreshLocation}
+            onPress={() => { refreshLocation(); refetch(); refetchForecast() }}
           >
             <Text style={s.locationBtnIcon}>◎</Text>
           </Pressable>
@@ -500,6 +597,9 @@ export default function Exposure() {
             <Text style={[s.heroBadgeText, { color: aqi.color }]}>{aqi.label}</Text>
           </View>
         </View>
+
+        {/* ── Pollen ───────────────────────────────────────────────────────── */}
+        <PollenSection pollen={currentPollen} loading={forecastLoading} hasLocation={!!coords} />
 
         {/* ── Your Exposure section ────────────────────────────────────────── */}
         <View style={s.sectionHeader}>
@@ -559,6 +659,15 @@ export default function Exposure() {
           )}
         </View>
 
+        {/* ── Aero Insights ────────────────────────────────────────────────── */}
+        {weekChange != null && weekChange !== 0 && (
+          <AeroInsightsBanner pctChange={weekChange} />
+        )}
+
+        {/* ── AQI Forecast ─────────────────────────────────────────────────── */}
+        <View style={{ height: 16 }} />
+        <ForecastSection forecast={aqiForecast} loading={forecastLoading} />
+
         <View style={{ height: 20 }} />
       </ScrollView>
     </View>
@@ -602,6 +711,28 @@ const s = StyleSheet.create({
     ...Shadow.subtle,
   },
   locationBtnIcon: { fontSize: 16, color: Colors.textSecondary },
+
+  // Aero Insights banner
+  insightsBanner: {
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    gap: 2,
+  },
+  insightsLabel: {
+    fontSize: FontSize.micro,
+    fontFamily: FontFamily.bold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  insightsBody: {
+    fontSize: FontSize.body,
+    fontFamily: FontFamily.serif,
+    lineHeight: 22,
+  },
 
   // Hero card
   heroCard: {
@@ -815,6 +946,116 @@ const s = StyleSheet.create({
     fontSize: FontSize.tiny,
     fontFamily: FontFamily.regular,
     color: Colors.textTertiary,
+  },
+
+  // Forecast card
+  forecastCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    ...Shadow.card,
+  },
+  forecastRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  forecastDayCard: {
+    flex: 1,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 4,
+  },
+  forecastDayLabel: {
+    fontSize: FontSize.micro,
+    fontFamily: FontFamily.bold,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  forecastAQIValue: {
+    fontSize: 28,
+    fontFamily: FontFamily.serifMedium,
+    lineHeight: 34,
+  },
+  forecastAQIUnit: {
+    fontSize: FontSize.tiny,
+    fontFamily: FontFamily.regular,
+    color: Colors.textTertiary,
+  },
+  forecastBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    marginTop: 2,
+  },
+  forecastBadgeText: {
+    fontSize: FontSize.tiny,
+    fontFamily: FontFamily.medium,
+    textAlign: 'center',
+  },
+
+  // Skeleton placeholders
+  skeletonLabel: {
+    width: 36,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.border,
+  },
+  skeletonValue: {
+    width: 44,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: Colors.border,
+    marginTop: 4,
+  },
+  skeletonBadge: {
+    width: 60,
+    height: 18,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.border,
+    marginTop: 4,
+  },
+  skeletonPollen: {
+    flex: 1,
+    height: 52,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.border,
+  },
+
+  // Pollen card
+  pollenCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: 16,
+    marginBottom: 16,
+    ...Shadow.card,
+  },
+  pollenRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pollenBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: Radius.md,
+  },
+  pollenName: {
+    fontSize: FontSize.micro,
+    fontFamily: FontFamily.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  pollenLevel: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.medium,
+    marginTop: 1,
   },
 
   // Error / retry

@@ -74,7 +74,7 @@ async function buildContext(userId: string): Promise<Record<string, unknown>> {
   const todayPm1 = todayReadings.map(r => r.pm1_0 ?? 0).filter(v => v > 0)
   const todayPm10 = todayReadings.map(r => r.pm10 ?? 0).filter(v => v > 0)
 
-  // Hourly buckets for best/peak
+  // Hourly buckets for best/peak (today)
   const hourBuckets: Record<number, number[]> = {}
   for (const r of todayReadings) {
     if (r.pm2_5 == null) continue
@@ -88,6 +88,34 @@ async function buildContext(userId: string): Promise<Record<string, unknown>> {
   }))
   const peakHour = hourlyAvgs.sort((a, b) => b.avg - a.avg)[0]
   const bestHour = hourlyAvgs.sort((a, b) => a.avg - b.avg)[0]
+
+  // Daily hourly peaks across all 7 days — used by Schema 2 (Temporal Avoidance)
+  const dailyHourBuckets: Record<string, Record<number, number[]>> = {}
+  for (const r of readings) {
+    if (r.pm2_5 == null) continue
+    const date = r.timestamp.slice(0, 10)
+    const hour = new Date(r.timestamp).getHours()
+    if (!dailyHourBuckets[date]) dailyHourBuckets[date] = {}
+    if (!dailyHourBuckets[date][hour]) dailyHourBuckets[date][hour] = []
+    dailyHourBuckets[date][hour].push(r.pm2_5)
+  }
+  const daily_peak_hours = Object.entries(dailyHourBuckets)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, hours]) => {
+      const avgs = Object.entries(hours).map(([h, vals]) => ({
+        hour: parseInt(h),
+        avg: round1(vals.reduce((a, b) => a + b, 0) / vals.length),
+      }))
+      const peak = avgs.reduce((max, cur) => (cur.avg > max.avg ? cur : max), avgs[0])
+      const best = avgs.reduce((min, cur) => (cur.avg < min.avg ? cur : min), avgs[0])
+      const likely_source =
+        peak.hour >= 7 && peak.hour <= 9
+          ? 'morning traffic'
+          : peak.hour >= 17 && peak.hour <= 19
+          ? 'evening traffic'
+          : undefined
+      return { date, peak_time: `${peak.hour}:00`, peak_value: peak.avg, best_time: `${best.hour}:00`, best_value: best.avg, likely_source }
+    })
 
   // 7-day daily averages
   const dayBuckets: Record<string, { s25: number; s1: number; s10: number; count: number }> = {}
@@ -129,6 +157,7 @@ async function buildContext(userId: string): Promise<Record<string, unknown>> {
       peak_pm2_5: peakPm25Today,
       peak_hour: peakHour ? `${peakHour.hour}:00` : null,
       best_hour: bestHour ? `${bestHour.hour}:00` : null,
+      daily_peak_hours,
     },
     last7days,
     who_guideline_pm2_5: 15,

@@ -586,24 +586,24 @@ const s = StyleSheet.create({
 
   // Suggested questions
   suggestionsContainer: {
-    height: 36,
+    height: 52,
   },
   suggestionsRow: {
     paddingHorizontal: 14,
     paddingVertical: 4,
-    gap: 6,
+    gap: 8,
     alignItems: 'center',
   },
   suggestionChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.primary,
     backgroundColor: Colors.primaryLight,
   },
   suggestionText: {
-    fontSize: FontSize.tiny,
+    fontSize: FontSize.caption,
     fontFamily: FontFamily.medium,
     color: Colors.primary,
   },

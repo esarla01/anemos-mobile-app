@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import * as Location from 'expo-location'
 
 export interface LocationState {
+  coords: { latitude: number; longitude: number } | null
   label: string | null   // e.g. "Shoreditch, London" or "London, W2"
   granted: boolean
   loading: boolean
@@ -22,6 +23,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
 }
 
 export function useLocation(): LocationState {
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null)
   const [label, setLabel] = useState<string | null>(null)
   const [granted, setGranted] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -53,6 +55,7 @@ export function useLocation(): LocationState {
           accuracy: Location.Accuracy.Balanced,
         })
         if (cancelled) return
+        setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
         const loc = await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
         if (!cancelled) setLabel(loc)
       } catch (e: unknown) {
@@ -65,5 +68,5 @@ export function useLocation(): LocationState {
     return () => { cancelled = true }
   }, [tick])
 
-  return { label, granted, loading, error, refresh }
+  return { coords, label, granted, loading, error, refresh }
 }
