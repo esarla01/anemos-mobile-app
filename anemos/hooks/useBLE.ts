@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { NativeModules } from 'react-native'
 import { BleManager, Device, State } from 'react-native-ble-plx'
+
+const BLE_AVAILABLE = !!NativeModules.BleClientManager
 
 export interface PMReading {
   timestamp: Date
@@ -19,13 +22,15 @@ export function useBLE() {
   const [connectionState, setConnectionState] = useState<BLEConnectionState>('disconnected')
   const [latestReading, setLatestReading] = useState<PMReading | null>(null)
 
-  const manager = useRef(new BleManager())
+  const manager = useRef<BleManager | null>(null)
   const device = useRef<Device | null>(null)
   const mounted = useRef(true)
   const retryTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
+    if (!BLE_AVAILABLE) return
     mounted.current = true
+    manager.current = new BleManager()
     const mgr = manager.current
 
     function parseReading(base64: string) {
@@ -99,6 +104,7 @@ export function useBLE() {
       mgr.stopDeviceScan()
       device.current?.cancelConnection().catch(() => {})
       mgr.destroy()
+      manager.current = null
     }
   }, [])
 
