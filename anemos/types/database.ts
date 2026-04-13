@@ -1,5 +1,5 @@
 export type Gender = 'male' | 'female' | 'non_binary' | 'prefer_not_to_say'
-export type ExposureSource = 'synthetic'
+export type ExposureSource = 'synthetic' | 'ble'
 
 export interface UserProfile {
   user_id: string

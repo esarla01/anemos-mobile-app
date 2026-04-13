@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../utils/supabase'
 import { useSession } from '../context/AuthContext'
 import type { ExposureReading } from '../types/database'
+import type { PMReading } from './useBLE'
 
 export interface DailyAverage {
   date: string      // 'YYYY-MM-DD'
@@ -42,9 +43,10 @@ function dayAbbr(date: Date): string {
   return date.toLocaleDateString('en-US', { weekday: 'short' })
 }
 
-export function useExposure(): UseExposureResult {
+export function useExposure(bleReading?: PMReading | null): UseExposureResult {
   const { session } = useSession()
   const [current, setCurrent] = useState<ExposureReading | null>(null)
+  const lastBleWrite = useRef<number>(0)
   const [todayHourly, setTodayHourly] = useState<TimePoint[]>([])
   const [threeDaySixHour, setThreeDaySixHour] = useState<TimePoint[]>([])
   const [sevenDayDaily, setSevenDayDaily] = useState<DailyAverage[]>([])
@@ -175,6 +177,42 @@ export function useExposure(): UseExposureResult {
     }
     setThreeDaySixHour(sixHourPoints)
   }, [session])
+
+  // ── Live BLE updates ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!bleReading || !session) return
+
+    // Immediately reflect live reading in the UI
+    setCurrent({
+      id: 'ble-live',
+      user_id: session.user.id,
+      timestamp: bleReading.timestamp.toISOString(),
+      pm1_0: bleReading.pm1,
+      pm2_5: bleReading.pm25,
+      pm10: bleReading.pm10,
+      source: 'ble',
+      created_at: bleReading.timestamp.toISOString(),
+    })
+
+    // Throttle DB writes — sensor fires every ~1-2s, write at most every 5s
+    const now = Date.now()
+    if (now - lastBleWrite.current < 5_000) return
+    lastBleWrite.current = now
+
+    supabase
+      .from('exposure_readings')
+      .insert({
+        user_id: session.user.id,
+        timestamp: bleReading.timestamp.toISOString(),
+        pm1_0: bleReading.pm1,
+        pm2_5: bleReading.pm25,
+        pm10: bleReading.pm10,
+        source: 'ble',
+      })
+      .then(({ error }) => {
+        if (!error) fetchHistory()
+      })
+  }, [bleReading, session, fetchHistory])
 
   const refetch = useCallback(() => {
     setLoading(true)

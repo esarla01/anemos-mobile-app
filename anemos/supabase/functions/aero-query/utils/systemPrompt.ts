@@ -62,7 +62,7 @@ ${JSON.stringify(insights, null, 2)}
 After every response, append exactly one line in this format (no deviations):
 FOLLOW_UP: Question one? | Question two? | Question three?
 
-Make the 3 questions short (under 8 words each), specific to this conversation and the user's data, and genuinely useful as next steps. Only suggest questions that Aero can answer using the data it has: current or historical PM2.5/PM10/PM1.0 readings, today's best/peak hours, 7-day trends, logged symptoms or wellbeing scores, the user's health conditions, or outdoor activity risk. Do not suggest questions about forecasts, weather, medications, or anything outside Aero's data scope. Do not number them or add any other punctuation around them.`
+Make the 3 questions short (under 8 words each), specific to this conversation and the user's data, and genuinely useful as next steps. Write them from the user's perspective using first person ("What's my average PM2.5?", "How did I do this week?") — never from Aero's perspective ("Would you like to know…", "Should I explain…"). Only suggest questions that Aero can answer using the data it has: current or historical PM2.5/PM10/PM1.0 readings, today's best/peak hours, 7-day trends, logged symptoms or wellbeing scores, the user's health conditions, or outdoor activity risk. Do not suggest questions about forecasts, weather, medications, or anything outside Aero's data scope. Do not number them or add any other punctuation around them.`
 }
 
 // ─── Schema Section ───────────────────────────────────────────────────────────

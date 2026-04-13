@@ -11,7 +11,9 @@ import Svg, {
 import { useExposure } from '../../hooks/useExposure'
 import { useLocation } from '../../hooks/useLocation'
 import { useAirQualityForecast } from '../../hooks/useAirQualityForecast'
+import { useBLE } from '../../hooks/useBLE'
 import type { TimePoint, DailyAverage } from '../../hooks/useExposure'
+import type { BLEConnectionState } from '../../hooks/useBLE'
 import type { DayAQI, PollenType } from '../../hooks/useAirQualityForecast'
 import { Colors, FontFamily, FontSize, Radius, Shadow, Spacing } from '../../constants/theme'
 
@@ -388,6 +390,15 @@ function SummaryCard({ points, tab }: SummaryCardProps) {
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
+function bleBadgeProps(state: BLEConnectionState): { label: string; color: string } {
+  switch (state) {
+    case 'connected':    return { label: 'Live', color: Colors.primary }
+    case 'connecting':   return { label: 'Connecting…', color: '#D4903A' }
+    case 'scanning':     return { label: 'Scanning…', color: '#D4903A' }
+    case 'disconnected': return { label: 'Sensor offline', color: Colors.textTertiary }
+  }
+}
+
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: 'pm1_0', label: 'PM1.0' },
   { key: 'pm2_5', label: 'PM2.5' },
@@ -487,7 +498,8 @@ function PollenSection({ pollen, loading, hasLocation }: { pollen: PollenType[];
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function Exposure() {
-  const { current, todayHourly, threeDaySixHour, sevenDayDaily, loading, error, refetch } = useExposure()
+  const { connectionState, latestReading: bleReading } = useBLE()
+  const { current, todayHourly, threeDaySixHour, sevenDayDaily, loading, error, refetch } = useExposure(bleReading)
   const { coords, label: locationLabel, loading: locationLoading, refresh: refreshLocation } = useLocation()
   const { aqiForecast, currentPollen, loading: forecastLoading, refetch: refetchForecast } = useAirQualityForecast(coords)
   const [heroMetric, setHeroMetric] = useState<MetricKey>('pm2_5')
@@ -571,6 +583,15 @@ export default function Exposure() {
                 {current?.timestamp ? relativeTime(current.timestamp) : '—'}
               </Text>
             </View>
+            {(() => {
+              const { label, color } = bleBadgeProps(connectionState)
+              return (
+                <View style={s.bleBadge}>
+                  <View style={[s.bleDot, { backgroundColor: color }]} />
+                  <Text style={[s.bleLabel, { color }]}>{label}</Text>
+                </View>
+              )
+            })()}
           </View>
           <Pressable
             style={({ pressed }) => [s.locationBtn, pressed && { transform: [{ scale: 0.96 }] }]}
@@ -1077,5 +1098,39 @@ const s = StyleSheet.create({
     color: '#fff',
     fontSize: FontSize.bodySmall,
     fontFamily: FontFamily.bold,
+  },
+
+  // BLE status badge
+  bleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
+  },
+  bleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  bleLabel: {
+    fontSize: FontSize.micro,
+    fontFamily: FontFamily.medium,
+  },
+
+  // Obstructed warning banner
+  obstructedBanner: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: Radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  obstructedText: {
+    fontSize: FontSize.caption,
+    fontFamily: FontFamily.medium,
+    color: '#92400E',
+    textAlign: 'center',
   },
 })
