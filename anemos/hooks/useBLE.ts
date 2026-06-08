@@ -1,8 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { NativeModules } from 'react-native'
 import { BleManager, Device, State } from 'react-native-ble-plx'
-
-const BLE_AVAILABLE = !!NativeModules.BleClientManager
 
 export interface PMReading {
   timestamp: Date
@@ -28,7 +25,6 @@ export function useBLE() {
   const retryTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
-    if (!BLE_AVAILABLE) return
     mounted.current = true
     manager.current = new BleManager()
     const mgr = manager.current
